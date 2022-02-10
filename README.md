@@ -1,8 +1,28 @@
-# Welcome to your CDK TypeScript project!
+# Erigon Node on AWS with CDK
 
-This is a blank project for TypeScript development with CDK.
+## Prerequisites
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+Before you start you need to install **AWS CDK CLI** and bootstrap your AWS account:
+
+1. [Prerequisites](https://docs.aws.amazon.com/cdk/latest/guide/getting_started.html#getting_started_prerequisites) 
+2. [Install AWS CDK Locally](https://docs.aws.amazon.com/cdk/latest/guide/getting_started.html#getting_started_install)
+3. [Bootstrapping](https://docs.aws.amazon.com/cdk/latest/guide/getting_started.html#getting_started_bootstrap)
+
+
+## Creating the node
+
+To create the node, run:
+
+```
+CLOUDFLARE_KEY="<CLOUDFLARE_KEY>" BASICAUTH_USERNAME="erigon" BASICAUTH_HASHED_PASSWORD="<HASHED_PASSWORD>" cdk --profile "<AWS Profile>" deploy --all --require-approval never
+```
+
+Environment Variables:
+
+- `CLOUDFLARE_KEY` Your cloudflare API key
+- `BASICAUTH_USERNAME` The username you want to use for basic auth
+- `BASICAUTH_HASHED_PASSWORD` The hashed password. See [Caddy documentation](https://caddyserver.com/docs/command-line#caddy-hash-password) for more details.
+
 
 ## Useful commands
 
