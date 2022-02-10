@@ -1,0 +1,15 @@
+:80 {
+ basicauth {
+  {$BASICAUTH_USERNAME} {$BASICAUTH_HASHED_PASSWORD}
+ }
+
+ tls {
+  dns cloudflare {$CLOUDFLARE_KEY}
+ }
+
+
+ reverse_proxy erigonrpc:8545 {
+   header_up X-Scheme https
+   header_down Access-Control-Allow-Headers "origin, content-type, accept"
+ }
+}
