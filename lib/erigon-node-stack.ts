@@ -45,6 +45,9 @@ export class ErigonNodeStack extends Stack {
 
     asgProvider.autoScalingGroup.connections.allowFromAnyIpv4(ec2.Port.tcp(22));
     asgProvider.autoScalingGroup.connections.allowFromAnyIpv4(ec2.Port.tcp(80));
+    asgProvider.autoScalingGroup.connections.allowFromAnyIpv4(
+      ec2.Port.tcp(443)
+    );
 
     cluster.addAsgCapacityProvider(asgProvider);
 
@@ -101,6 +104,8 @@ export class ErigonNodeStack extends Stack {
         "/data/ethdata",
         "--chain",
         "mainnet",
+        "--trustedpeers",
+        "enode://c01cd4ad75b3afe03e4dc0e64c66411dca01f5c197707f3c42efb41774e334db0c4a4f872729b2396cf48f326c837f804de1b06e52140ad3cf316b6c30512b93@3.84.43.68:30310,enode://6d27b80e5bb9a7d6053256de855e2afb6dde2ef40faf48cd0fc9163a69f86a010df6592664176dbb425ae4298addd760ea492a5dcc37f52e4dd27a87e03f643f@54.226.35.233:30303",
         "--healthcheck",
       ],
       portMappings: [
@@ -151,6 +156,7 @@ export class ErigonNodeStack extends Stack {
         "10000",
         "--rpc.batch.concurrency",
         "6",
+        "--ws"
       ],
       portMappings: [
         { containerPort: 8545 }, // RPC
@@ -173,12 +179,15 @@ export class ErigonNodeStack extends Stack {
         mode: ecs.AwsLogDriverMode.NON_BLOCKING,
       }),
       memoryReservationMiB: 512,
-      portMappings: [{ containerPort:80, hostPort: 80 }],
+      portMappings: [
+        { containerPort: 80, hostPort: 80 },
+        { containerPort: 443, hostPort: 443 },
+      ],
       environment: {
         BASICAUTH_USERNAME: props.basicAuthUsername,
         BASICAUTH_HASHED_PASSWORD: props.basicAuthPassword,
         CLOUDFLARE_KEY: props.cloudflareKey,
-      }
+      },
     });
 
     caddyContainer.addLink(rpcContainer, "erigonrpc");

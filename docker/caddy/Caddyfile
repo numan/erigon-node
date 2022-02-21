@@ -1,4 +1,4 @@
-:80 {
+node.yearn.network, :80 {
  basicauth {
   {$BASICAUTH_USERNAME} {$BASICAUTH_HASHED_PASSWORD}
  }
