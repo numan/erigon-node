@@ -140,6 +140,8 @@ export class ErigonNodeStack extends Stack {
         "rpcdaemon",
         "--private.api.addr",
         "erigon:9090",
+        "--txpool.api.addr",
+        "erigon:9090",
         "--http.addr",
         "0.0.0.0",
         "--http.port",
