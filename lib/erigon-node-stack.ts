@@ -129,7 +129,7 @@ export class ErigonNodeStack extends Stack {
 
     const rpcContainer = taskDefinition.addContainer("ErigonRpcContainer", {
       containerName: "erigonrpc",
-      image: ecs.ContainerImage.fromRegistry("thorax/erigon:latest"),
+      image: ecs.ContainerImage.fromRegistry("thorax/erigon:v2022.04.01"),
       memoryReservationMiB: 512,
       logging: new ecs.AwsLogDriver({
         logGroup,
