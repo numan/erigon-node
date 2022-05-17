@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import "source-map-support/register";
 import * as cdk from "aws-cdk-lib";
-import { ErigonNodeStack } from "../lib/erigon-node-stack";
+import { ErigonEBSNodeStack } from "../lib/erigon-node-stack";
 import { StackProps } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { aws_ec2 as ec2 } from "aws-cdk-lib";
@@ -33,10 +33,10 @@ export class ErigonNodesStack extends cdk.Stack {
       ]
     })
 
-    new ErigonNodeStack(this, "YearnAPIECSStack", {
+    new ErigonEBSNodeStack(this, "ErigonEBSNodeStack", {
       ...props,
       vpc,
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.I3EN, ec2.InstanceSize.XLARGE),
+      instanceType: ec2.InstanceType.of(ec2.InstanceClass.I3EN, ec2.InstanceSize.XLARGE2),
       cloudflareKey: CLOUDFLARE_KEY,
       basicAuthUsername: BASICAUTH_USERNAME,
       basicAuthPassword: BASICAUTH_HASHED_PASSWORD,

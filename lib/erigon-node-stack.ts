@@ -21,7 +21,7 @@ export interface ErigonNodeProps extends StackProps {
   readonly cloudflareKey: string;
 }
 
-export class ErigonNodeStack extends Stack {
+export class ErigonEBSNodeStack extends Stack {
   constructor(scope: Construct, id: string, props: ErigonNodeProps) {
     super(scope, id, props);
 
@@ -38,7 +38,6 @@ export class ErigonNodeStack extends Stack {
           vpc: props.vpc,
           machineImage: ecs.EcsOptimizedImage.amazonLinux2(),
           vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
-          keyName: "erigon",
         }),
       }
     );
@@ -57,11 +56,18 @@ export class ErigonNodeStack extends Stack {
 
     const userData = ec2.UserData.forLinux();
     const commands = [
-      "sudo mkdir /mnt/erigon-data/",
-      "sudo mkfs -t ext4 /dev/nvme1n1",
-      "sudo mount -t ext4 /dev/nvme1n1 /mnt/erigon-data",
+      "sudo yum update -y",
+      "sudo yum install mdadm -y",
+      "sudo mdadm --create --verbose /dev/md0 --level=0 --name=ERIGON_RAID --raid-devices=2 /dev/nvme1n1 /dev/nvme2n1",
+      "sudo sleep 10",
+      "sudo mkfs.ext4 -L ERIGON_RAID /dev/md0",
+      "sudo mdadm --detail --scan | sudo tee -a /etc/mdadm.conf",
+      "sudo dracut -H -f /boot/initramfs-$(uname -r).img $(uname -r)",
+      "sudo mkdir -p /mnt/erigon-data/",
+      "sudo mount LABEL=ERIGON_RAID /mnt/erigon-data",
       "sudo mkdir -p /mnt/erigon-data/ethdata",
       "sudo chown ec2-user:ec2-user /mnt/erigon-data/ethdata",
+      "sudo sh -c 'echo \"LABEL=ERIGON_RAID       /mnt/erigon-data   ext4    defaults,nofail        0       2\" >> /etc/fstab'",
     ];
     userData.addCommands(...commands);
 
@@ -87,6 +93,38 @@ export class ErigonNodeStack extends Stack {
       }
     );
 
+    const downloader = taskDefinition.addContainer(
+      "ErigonDownloaderContainer",
+      {
+        containerName: "downloader",
+        image: ecs.ContainerImage.fromAsset("docker/erigon"),
+        memoryReservationMiB: 512,
+        logging: new ecs.AwsLogDriver({
+          logGroup,
+          streamPrefix: "downloader",
+          mode: AwsLogDriverMode.NON_BLOCKING,
+        }),
+        command: [
+          "downloader",
+          "--datadir",
+          "/data/ethdata",
+          "--downloader.api.addr",
+          "0.0.0.0:9093",
+        ],
+        portMappings: [
+          { containerPort: 9093, hostPort: 9093 }, // api
+          { containerPort: 42069 }, // torrent
+          { containerPort: 42069, protocol: ecs.Protocol.UDP }, // torrent
+        ],
+      }
+    );
+
+    downloader.addMountPoints({
+      sourceVolume: "ethdata",
+      containerPath: "/data/ethdata",
+      readOnly: false,
+    });
+
     const container = taskDefinition.addContainer("ErigonContainer", {
       containerName: "erigon",
       image: ecs.ContainerImage.fromAsset("docker/erigon"),
@@ -102,8 +140,12 @@ export class ErigonNodeStack extends Stack {
         "0.0.0.0:9090",
         "--datadir",
         "/data/ethdata",
+        "--downloader.api.addr",
+        "downloader:9093",
         "--chain",
         "mainnet",
+        "--batchSize",
+        "1024M",
         "--trustedpeers",
         "enode://c01cd4ad75b3afe03e4dc0e64c66411dca01f5c197707f3c42efb41774e334db0c4a4f872729b2396cf48f326c837f804de1b06e52140ad3cf316b6c30512b93@3.84.43.68:30310,enode://6d27b80e5bb9a7d6053256de855e2afb6dde2ef40faf48cd0fc9163a69f86a010df6592664176dbb425ae4298addd760ea492a5dcc37f52e4dd27a87e03f643f@54.226.35.233:30303",
         "--healthcheck",
@@ -127,9 +169,11 @@ export class ErigonNodeStack extends Stack {
       readOnly: false,
     });
 
+    container.addLink(downloader, "downloader");
+
     const rpcContainer = taskDefinition.addContainer("ErigonRpcContainer", {
       containerName: "erigonrpc",
-      image: ecs.ContainerImage.fromRegistry("thorax/erigon:v2022.04.01"),
+      image: ecs.ContainerImage.fromRegistry("thorax/erigon:v2022.05.04"),
       memoryReservationMiB: 512,
       logging: new ecs.AwsLogDriver({
         logGroup,
@@ -158,7 +202,7 @@ export class ErigonNodeStack extends Stack {
         "10000",
         "--rpc.batch.concurrency",
         "6",
-        "--ws"
+        "--ws",
       ],
       portMappings: [
         { containerPort: 8545 }, // RPC
